@@ -1,9 +1,9 @@
 name: Refresh official park data
 on:
   workflow_dispatch:
-  # Enable a weekly schedule after credentials and deployment are verified.
-  # schedule:
-  #   - cron: '17 20 * * 0'
+  # Monday 05:17 Asia/Seoul (GitHub schedules can be delayed).
+  schedule:
+    - cron: '17 20 * * 0'
 permissions:
   contents: write
 concurrency:
@@ -12,6 +12,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,6 +35,16 @@ jobs:
         run: |
           node build-data.mjs
           node --test tests/*.test.mjs
+      - name: Save collection reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: collection-reports
+          path: |
+            collection-result.json
+            work/kosis-collection-result.json
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Commit changed public data
         run: |
           git config user.name 'github-actions[bot]'

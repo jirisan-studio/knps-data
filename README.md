@@ -46,7 +46,7 @@ GitHub 저장소 jirisan-studio/knps-data와 Vercel 프로젝트 knps-data는 �
 
 Vercel 설정은 `vercel.json`에 있으며 정적 배포 출력은 site입니다. 배포에서는 API를 호출하지 않습니다. 계정별 업무 이용 조건, Git 연결 권한, 배포 설정은 실제 프로젝트 생성 후 확인합니다.
 
-GitHub Actions의 refresh 작업은 수동 실행으로만 준비했습니다. DATA_GO_KR_SERVICE_KEY와 KOSIS_API_KEY Secret을 모두 설정하고 실제 실행 및 배포 연동을 검증한 뒤 예약 실행을 활성화합니다. 지금은 자동 갱신이 운영 중이라고 표시하지 않습니다. 인증키가 포함된 환경변수 파일과 URL·예외 내용을 출력하지 않습니다.
+GitHub Actions의 Refresh official park data 작업은 매주 월요일 오전 5시 17분(한국시간)에 실행하도록 설정했습니다. GitHub 사정으로 시작이 지연될 수 있습니다. 저장소 Settings → Secrets and variables → Actions에 DATA_GO_KR_SERVICE_KEY와 KOSIS_API_KEY를 Repository secrets로 등록한 뒤 Actions에서 Run workflow를 한 번 실행해 연결을 확인하세요. 예약 설정이 main에 업로드되고 비밀키 등록과 첫 실행이 성공해야 운영 준비가 끝납니다. 전체 수집·검증이 성공한 경우만 공개 자료를 커밋하고 Vercel이 배포합니다. 실패하면 기존 배포 자료를 유지하며 Actions의 실패 상태와 14일 보관되는 수집 보고서로 확인합니다. 등록된 API 주소가 폐기되거나 새 버전으로 교체되면 주소·기준일을 공식 문서에서 확인해 수정해야 합니다. KOSIS는 2009년부터 전년도까지 요청하고 실제 공개된 마지막 연도만 표시합니다. 인증키가 포함된 환경변수 파일과 URL·예외 내용을 출력하지 않습니다.
 
 ## 검증 범위와 남은 확인
 

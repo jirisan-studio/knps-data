@@ -15,7 +15,9 @@ const manifest={generatedAt:new Date().toISOString(),parks,parkSource:'https://w
 for(const config of configuration){
  const rawText=await readFile(new URL(`./work/raw/source-${config.id}.json`,import.meta.url),'utf8');
  const source=JSON.parse(rawText);if(source.sourceId!==config.id||source.data.length!==source.totalCount)throw new Error('Source completeness check failed: '+config.id);
- const fields=[...new Set(source.data.flatMap(Object.keys))];const exact=new Set();let duplicates=0;
+ const fields=[...new Set(source.data.flatMap(Object.keys))];
+ const required={roadkill:['국립공원명','조사일자','자원명','위도','경도'],landslide:['공원명','발생시기','구간명','위도','경도'],buildings:['시설물명칭','시공연도'],visitors:['국립공원','일자','탐방지역','관리지구','전체 탐방객수'],landscape:['경관위치명','경관위치_위도','경관위치_경도']}[config.key];
+ if(!source.data.length||required.some(f=>!fields.includes(f)))throw Error('Missing source fields: '+config.id);const exact=new Set();let duplicates=0;
  const rows=source.data.map((r,i)=>{const fingerprint=JSON.stringify(r);if(exact.has(fingerprint))duplicates++;exact.add(fingerprint);let p=null,d=null,y=null,l='',v=null,lat=null,lon=null;
   if(config.key==='roadkill'){p=parkId(r['국립공원명']);d=validDate(r['조사일자']);y=d?Number(d.slice(0,4)):null;l=r['자원명']??'';[lat,lon]=coordinatePair(r['위도'],r['경도']);}
   if(config.key==='landslide'){p=parkId(r['공원명']);y=validYear(r['발생시기']);l=r['구간명']??'';[lat,lon]=coordinatePair(r['위도'],r['경도']);}
@@ -25,7 +27,7 @@ for(const config of configuration){
   return {i:i+1,p,d,y,l,v,lat,lon,raw:fields.map(f=>r[f]??null)};
  });
  const dates=rows.map(r=>r.d).filter(Boolean).sort();const years=rows.map(r=>r.y).filter(v=>v!==null).sort((a,b)=>a-b);
- const meta={...config,provider:'국립공원공단',sourceUrl:source.sourceUrl,endpoint:source.endpoint,fetchedAt:source.fetchedAt,refreshMethod:'공식 API 전체 수집; 자동 갱신 연결 전',count:rows.length,fields,dates:dates.length?[dates[0],dates.at(-1)]:null,years:[...new Set(years)],mapped:rows.filter(r=>r.p).length,coordinateValid:rows.filter(r=>r.lat!==null&&r.lon!==null).length,duplicateRows:duplicates,invalidDates:config.key==='roadkill'||config.key==='visitors'?rows.filter(r=>!r.d).length:null,invalidYears:config.key==='buildings'?rows.filter(r=>r.y===null).length:null,checksum:createHash('sha256').update(rawText).digest('hex')};
+ const meta={...config,provider:'국립공원공단',sourceUrl:source.sourceUrl,endpoint:source.endpoint,fetchedAt:source.fetchedAt,refreshMethod:'공식 API 전체 페이지; 주간 수집 작업 (마지막 성공일은 수집일 확인)',count:rows.length,fields,dates:dates.length?[dates[0],dates.at(-1)]:null,years:[...new Set(years)],mapped:rows.filter(r=>r.p).length,coordinateValid:rows.filter(r=>r.lat!==null&&r.lon!==null).length,duplicateRows:duplicates,invalidDates:config.key==='roadkill'||config.key==='visitors'?rows.filter(r=>!r.d).length:null,invalidYears:config.key==='buildings'?rows.filter(r=>r.y===null).length:null,checksum:createHash('sha256').update(rawText).digest('hex')};
  if(config.key==='visitors'){const uniqueKeys=new Set();for(const r of source.data){const k=JSON.stringify([r['일자'],r['관리지구'],r['탐방지역']]);if(uniqueKeys.has(k))throw new Error('Ambiguous visitor point/date');uniqueKeys.add(k);}meta.points=[...new Set(rows.map(r=>r.l))].sort();meta.invalidValues=rows.filter(r=>r.v===null).length;}
  const output=JSON.stringify({meta,rows});if(secretValues.some(s=>output.includes(s)||output.includes(encodeURIComponent(s))))throw new Error('Secret detected in public output');
  await writeFile(new URL(`${config.key}.json`,directory),output,'utf8');manifest.datasets.push(meta);console.log(`${config.name}: ${rows.length} rows; ${meta.coordinateValid} valid coordinate pairs; ${duplicates} duplicate-content rows preserved`);

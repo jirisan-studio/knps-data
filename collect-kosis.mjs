@@ -6,7 +6,7 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 const tableId = 'TX_35501_A042';
 const orgId = '355';
 const startYear = 2009;
-const endYear = 2025; // Latest year verified in the official table, 2026-10-05.
+const endYear = new Date().getUTCFullYear() - 1; // Request completed years; never synthesize unpublished cells.
 const directory = new URL('./work/raw/', import.meta.url);
 const report = { checkedAt: new Date().toISOString(), tableId, period: `${startYear}~${endYear}`, status: 'pending' };
 const variables = new Map();
@@ -26,7 +26,7 @@ try {
   const url = new URL('https://kosis.kr/openapi/Param/statisticsParameterData.do');
   const parameters = { method: 'getList', apiKey: key, orgId, tblId: tableId, itmId: 'all', objL1: 'all', prdSe: 'Y', startPrdDe: String(startYear), endPrdDe: String(endYear), format: 'json', jsonVD: 'Y', smblChk: 'Y' };
   for (const [name, value] of Object.entries(parameters)) url.searchParams.set(name, value);
-  console.log('Collecting KOSIS official annual park statistics (2009~2025)...');
+  console.log(`Collecting KOSIS official annual park statistics (${startYear}~${endYear})...`);
   let rows;
   if (process.argv.includes('--from-inspection')) {
     const inspection = JSON.parse(await readFile(new URL('kosis-response-inspection.json', directory), 'utf8'));
@@ -80,9 +80,10 @@ try {
     seen.add(id);
   }
   const years = [...new Set(rows.map(row => Number(row.PRD_DE)))].sort((a,b) => a-b);
-  if (years.length !== endYear - startYear + 1) throw new Error('incomplete_year_coverage');
+  // A new calendar year does not imply that its preceding annual statistics are published.
+  if (years[0] !== startYear || years.some((year, i) => year !== startYear + i)) throw new Error('incomplete_year_coverage');
   const fetchedAt = inspectionFetchedAt ?? new Date().toISOString();
-  const snapshot = JSON.stringify({ sourceId: `kosis-${tableId}`, name: '공원별 연간 탐방객 수', provider: '국립공원공단', distributor: 'KOSIS', sourceUrl: `https://kosis.kr/statHtml/statHtml.do?orgId=${orgId}&tblId=${tableId}&conn_path=I2`, endpoint: url.origin + url.pathname, fetchedAt, period: {startYear, endYear}, totalCount: rows.length, data: rows }, null, 2);
+  const snapshot = JSON.stringify({ sourceId: `kosis-${tableId}`, name: '공원별 연간 탐방객 수', provider: '국립공원공단', distributor: 'KOSIS', sourceUrl: `https://kosis.kr/statHtml/statHtml.do?orgId=${orgId}&tblId=${tableId}&conn_path=I2`, endpoint: url.origin + url.pathname, fetchedAt, period: {startYear, endYear: years.at(-1)}, totalCount: rows.length, data: rows }, null, 2);
   const secrets = [...variables.values()].filter(value => value.length >= 8);
   if (secrets.some(value => snapshot.includes(value) || snapshot.includes(encodeURIComponent(value)))) throw new Error('secret_detected_in_response');
   const temporary = new URL(`kosis-annual-visitors.${process.pid}.tmp`, directory);
