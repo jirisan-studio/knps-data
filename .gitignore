@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+work/
+api-check-result.json
+api-check-all-result.json
+collection-result.json
+validation-result.json
