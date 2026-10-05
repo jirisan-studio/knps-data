@@ -1,15 +1,16 @@
 import {readFile,writeFile,mkdir,copyFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {parks,parkId,validDate,validYear,coordinatePair} from './lib.mjs';
+import {normalizeAnnualVisitors} from './annual-visitors.mjs';
 const configuration=[
  {id:'3068387',key:'roadkill',name:'로드킬',category:'자연자원',version:'2023-12-20',modified:'2025-06-13',note:'공개된 조사기록 수입니다. 실제 사고 총수·위험도가 아닙니다. 동일 내용의 행도 근거 없이 삭제하지 않았습니다.',parkable:true,map:true,unit:'기록'},
  {id:'15090610',key:'landslide',name:'산사태',category:'재난·안전',version:'2022-12-31',modified:'2025-06-13',note:'2015~2022년 공개 발생기록입니다. 실시간 재난 위험·탐방 통제정보가 아닙니다.',parkable:true,map:true,unit:'기록'},
  {id:'15136172',key:'buildings',name:'건축물',category:'시설',version:'2024-09-11',modified:'2025-08-06',note:'공원 귀속과 X·Y 좌표계가 확인되지 않아 전국 원본 목록만 제공합니다. 기록 수는 고유 건축물 수가 아닙니다.',parkable:false,map:false,unit:'기록'},
- {id:'15107577',key:'visitors',name:'탐방객',category:'탐방',version:'2026-03-31',modified:'2026-05-21',note:'설악산의 선택한 탐방지역별 계수 기록입니다. 여러 지점의 값을 합산하지 않으며 고유 방문자 수로 해석하지 않습니다.',parkable:true,map:false,unit:'명'},
+ {id:'15107577',key:'visitors',name:'설악산 지점별 탐방객',category:'탐방',version:'2026-03-31',modified:'2026-05-21',note:'설악산의 선택한 탐방지역별 계수 기록입니다. 여러 지점의 값을 합산하지 않으며 고유 방문자 수로 해석하지 않습니다.',parkable:true,map:false,unit:'명'},
  {id:'15136457',key:'landscape',name:'경관자원',category:'경관·지질',version:'2024-09-11',modified:'2025-06-12',note:'공원명·조사일 필드가 없어 전국 위치와 목록을 제공합니다. 주소로 공원 귀속을 추정하지 않았습니다.',parkable:false,map:true,unit:'기록'}
 ];
 const directory=new URL('./site/data/',import.meta.url);await mkdir(directory,{recursive:true});
-let secretValues=[];try{const env=await readFile(new URL('./.env.local',import.meta.url),'utf8');secretValues=env.split(/\r?\n/).filter(l=>/^DATA_GO_KR_/.test(l)).map(l=>l.slice(l.indexOf('=')+1).trim().replace(/^['"]|['"]$/g,'')).filter(v=>v.length>=8);}catch{/*Build does not require secrets.*/}
+let secretValues=[];try{const env=await readFile(new URL('./.env.local',import.meta.url),'utf8');secretValues=env.split(/\r?\n/).filter(l=>/^\s*(?:DATA_GO_KR_[A-Z_]+|KOSIS_API_KEY)\s*=/.test(l)).map(l=>l.slice(l.indexOf('=')+1).trim().replace(/^['"]|['"]$/g,'')).filter(v=>v.length>=8);}catch{/*Build does not require secrets.*/}
 const manifest={generatedAt:new Date().toISOString(),parks,parkSource:'https://www.knps.or.kr/front/portal/visit/visitCourseMain.do?menuNo=7020102&parkId=122800',parkCheckedAt:'2026-10-05',datasets:[]};
 for(const config of configuration){
  const rawText=await readFile(new URL(`./work/raw/source-${config.id}.json`,import.meta.url),'utf8');
@@ -29,6 +30,9 @@ for(const config of configuration){
  const output=JSON.stringify({meta,rows});if(secretValues.some(s=>output.includes(s)||output.includes(encodeURIComponent(s))))throw new Error('Secret detected in public output');
  await writeFile(new URL(`${config.key}.json`,directory),output,'utf8');manifest.datasets.push(meta);console.log(`${config.name}: ${rows.length} rows; ${meta.coordinateValid} valid coordinate pairs; ${duplicates} duplicate-content rows preserved`);
 }
+let annualSource;
+try { annualSource=await readFile(new URL('./work/raw/kosis-annual-visitors.json',import.meta.url),'utf8'); } catch(error) { if(error.code!=='ENOENT')throw error; }
+if(annualSource){const annual=normalizeAnnualVisitors(JSON.parse(annualSource));const output=JSON.stringify(annual);if(secretValues.some(s=>output.includes(s)||output.includes(encodeURIComponent(s))))throw Error('Secret detected in KOSIS output');await writeFile(new URL('annual-visitors.json',directory),output,'utf8');manifest.datasets.unshift(annual.meta);console.log(`공원별 연간 탐방객: ${annual.rows.length} official statistical cells`);}
 await writeFile(new URL('./site/data/manifest.json',import.meta.url),JSON.stringify(manifest),'utf8');
 await copyFile(new URL('./lib.mjs',import.meta.url),new URL('./site/lib.mjs',import.meta.url));
 await writeFile(new URL('./validation-result.json',import.meta.url),JSON.stringify(manifest,null,2)+'\n','utf8');

@@ -20,11 +20,16 @@ jobs:
       - name: Configure private API credential
         env:
           API_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+          KOSIS_KEY: ${{ secrets.KOSIS_API_KEY }}
         run: |
           test -n "$API_KEY"
+          test -n "$KOSIS_KEY"
           printf 'DATA_GO_KR_SERVICE_KEY=%s\n' "$API_KEY" > .env.local
+          printf 'KOSIS_API_KEY=%s\n' "$KOSIS_KEY" >> .env.local
       - name: Collect complete API snapshots
-        run: node collect-data.mjs
+        run: |
+          node collect-data.mjs
+          node collect-kosis.mjs
       - name: Build and validate static data
         run: |
           node build-data.mjs
