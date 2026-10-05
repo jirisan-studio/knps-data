@@ -1,6 +1,6 @@
 import {groupCounts,csvCell} from './lib.mjs';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),fmt=n=>Number(n).toLocaleString('ko-KR');
-const state={key:'roadkill',park:'all',year:'all',point:'설악동',view:'profile',page:0,selected:new Set(),rows:[],groups:[],table:[],headers:[],chartSvg:'',request:0};
+const state={key:'annual-visitors',park:'all',year:'all',point:'설악동',view:'profile',page:0,selected:new Set(),rows:[],groups:[],table:[],headers:[],chartSvg:'',request:0};
 let manifest,current;const cache=new Map();let toastTimer;
 function toast(s){$('toast').textContent=s;$('toast').style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').style.display='none',3500);}
 function sourceCaption(){const m=current.meta;return `${m.name} | ${m.provider} | 자료 버전 ${m.version} | 관측 기준 ${m.periodLabel??(m.dates?m.dates.join(' ~ '):m.key==='landslide'?'2015 ~ 2022 (발생연도)':m.key==='buildings'?'원본 시공연도; 현황 기준일 미확인':'관측 기준일 미확인')} | 수정 ${m.modified} | 수집 ${new Date(m.fetchedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})} | ${m.sourceUrl} | 공원 ${state.park==='all'?'전국':parkName(state.park)} | 연도 ${state.year==='all'?'전체':state.year}${m.key==='visitors'?' | 탐방지역 '+state.point:''}${state.view==='compare'?' | 비교 공원 '+manifest.parks.filter(p=>state.selected.has(p.id)).map(p=>p.name).join(', '):''}`;}
